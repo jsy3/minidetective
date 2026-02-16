@@ -1,0 +1,36 @@
+.page {
+  min-height: 100vh;
+  width: 100%;
+  max-width: 375px;
+  margin: 0 auto;
+  background-color: var(--token-tds-color-white, #ffffff);
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 120px; /* 하단 고정 버튼 영역 확보 */
+  position: relative;
+}
+
+.content {
+  flex: 1;
+  padding: 0 20px;
+}
+
+.heroFrame {
+  width: 100%;
+  height: 220px;
+  background-color: var(--token-tds-color-grey-background, #f2f4f6);
+  border-radius: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 4px;
+}
+
+.error {
+  padding: 12px 20px;
+  color: var(--token-tds-color-red-500, #e53935);
+  font-size: 14px;
+  background: rgba(229, 57, 53, 0.08);
+  margin: 0 20px 8px;
+  border-radius: 8px;
+}

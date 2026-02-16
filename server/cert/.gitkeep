@@ -1,0 +1,3 @@
+# 이 폴더에 mTLS 인증서를 넣으세요.
+# - 앱인토스 콘솔에서 발급한: xxx.crt, xxx.key
+# - 또는 with-app-login 예제의 cert/mock_public.crt, mock_private.key 복사

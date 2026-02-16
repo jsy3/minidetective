@@ -1,0 +1,53 @@
+.page {
+  min-height: 100vh;
+  width: 100%;
+  max-width: 375px;
+  margin: 0 auto;
+  background-color: var(--token-tds-color-white, #ffffff);
+  padding: 8px 20px 100px;
+}
+
+.content {
+  padding: 0 4px;
+}
+
+.situationBox {
+  padding: 16px;
+  background-color: var(--token-tds-color-grey-background, #f2f4f6);
+  border-radius: 12px;
+}
+
+.clueButtons {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.bottomBar {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 375px;
+  padding: 16px 20px 24px;
+  background: var(--token-tds-color-white, #fff);
+  box-sizing: border-box;
+}
+
+.answerButton {
+  width: 100%;
+  padding: 16px 24px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #fff;
+  background: var(--token-tds-color-primary-default, #3182f6);
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.answerButton:active {
+  opacity: 0.9;
+}
