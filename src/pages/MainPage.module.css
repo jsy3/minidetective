@@ -48,6 +48,11 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+.answerButton:disabled {
+  background: var(--token-tds-color-grey-400, #b0b8c1);
+  cursor: not-allowed;
+}
+
 .answerButton:active {
   opacity: 0.9;
 }

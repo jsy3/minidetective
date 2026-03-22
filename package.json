@@ -5,18 +5,18 @@
   "type": "module",
   "main": "src/main.jsx",
   "scripts": {
-    "dev": "granite dev",
+    "dev": "node scripts/kill-dev-ports.cjs && granite dev",
     "dev:fresh": "node scripts/kill-dev-ports.cjs && granite dev",
     "dev:vite": "vite --host",
     "kill-ports": "node scripts/kill-dev-ports.cjs",
-    "build": "granite build",
+    "build": "ait build",
     "lint": "eslint .",
     "preview": "vite preview",
     "server": "cd server && npm start",
     "deploy": "ait deploy"
   },
   "dependencies": {
-    "@apps-in-toss/web-framework": "^1.11.2",
+    "@apps-in-toss/web-framework": "^2.0.8",
     "@emotion/react": "^11.14.0",
     "@toss/tds-mobile": "^2.2.1",
     "@toss/tds-mobile-ait": "^2.2.1",

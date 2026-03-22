@@ -2,32 +2,20 @@ const https = require('https');
 const fs = require('fs');
 const path = require('path');
 
-/**
- * 토스 API 호출용 mTLS 클라이언트.
- * CLIENT_CERT_PATH, CLIENT_KEY_PATH 가 설정된 경우에만 사용.
- */
-function createTLSClient(certPath, keyPath) {
-  const resolvedCert = path.resolve(process.cwd(), certPath);
-  const resolvedKey = path.resolve(process.cwd(), keyPath);
-
-  if (!fs.existsSync(resolvedCert) || !fs.existsSync(resolvedKey)) {
-    return null;
-  }
-
-  const options = {
-    cert: fs.readFileSync(resolvedCert),
-    key: fs.readFileSync(resolvedKey),
+function makeClient(options) {
+  const tlsOptions = {
+    ...options,
     rejectUnauthorized: true,
   };
 
   return {
-    post(url, body) {
+    post(url, body, headers = {}) {
       return new Promise((resolve, reject) => {
         const u = new URL(url);
         const data = JSON.stringify(body);
         const req = https.request(
           {
-            ...options,
+            ...tlsOptions,
             hostname: u.hostname,
             port: u.port || 443,
             path: u.pathname + u.search,
@@ -35,6 +23,7 @@ function createTLSClient(certPath, keyPath) {
             headers: {
               'Content-Type': 'application/json; charset=utf-8',
               'Content-Length': Buffer.byteLength(data),
+              ...headers,
             },
           },
           (res) => {
@@ -53,7 +42,7 @@ function createTLSClient(certPath, keyPath) {
         const u = new URL(url);
         const req = https.request(
           {
-            ...options,
+            ...tlsOptions,
             hostname: u.hostname,
             port: u.port || 443,
             path: u.pathname + u.search,
@@ -76,4 +65,39 @@ function createTLSClient(certPath, keyPath) {
   };
 }
 
-module.exports = { createTLSClient };
+/**
+ * 토스 API 호출용 mTLS 클라이언트.
+ * CLIENT_CERT_PATH, CLIENT_KEY_PATH 가 설정된 경우에 사용.
+ */
+function createTLSClient(certPath, keyPath) {
+  const resolvedCert = path.resolve(process.cwd(), certPath);
+  const resolvedKey = path.resolve(process.cwd(), keyPath);
+
+  if (!fs.existsSync(resolvedCert) || !fs.existsSync(resolvedKey)) {
+    return null;
+  }
+
+  return makeClient({
+    cert: fs.readFileSync(resolvedCert),
+    key: fs.readFileSync(resolvedKey),
+  });
+}
+
+/**
+ * 배포 환경에서 파일 없이 mTLS 인증서를 사용하기 위한 생성기.
+ */
+function createTLSClientFromBase64(certBase64, keyBase64) {
+  if (!certBase64 || !keyBase64) {
+    return null;
+  }
+  try {
+    return makeClient({
+      cert: Buffer.from(certBase64, 'base64'),
+      key: Buffer.from(keyBase64, 'base64'),
+    });
+  } catch {
+    return null;
+  }
+}
+
+module.exports = { createTLSClient, createTLSClientFromBase64 };

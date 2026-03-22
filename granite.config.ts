@@ -9,13 +9,14 @@ export default defineConfig({
   },
   web: {
     // localhost: 로컬 브라우저 접속용. 샌드박스에서 연결 시 본인 PC IP로 변경 (예: 192.168.0.10)
-    host: '192.168.151.110',
+    host: '192.168.0.10',
     port: 5173,
     commands: {
-      dev: 'vite --host --port 5173',
+      dev: 'vite --host',
       build: 'vite build',
     },
   },
   permissions: [],
   outdir: 'dist',
 });
+

@@ -1,11 +1,13 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import {
   Text,
   Spacing,
+  Button,
   CTAButton,
   useDialog,
 } from '@toss/tds-mobile';
-import { useRewardedAd } from '../hooks/useRewardedAd';
+import { useInterstitialAd } from '../hooks/useInterstitialAd';
+import { usePromotionReward } from '../hooks/usePromotionReward';
 import styles from './MainPage.module.css';
 
 const GREY_900 = '#191F28';
@@ -15,32 +17,100 @@ export default function MainPage({
   revealedClues,
   onRevealClue,
   onShowAnswer,
+  isLoggedIn,
 }) {
   const dialog = useDialog();
-  const { loading: adLoading, showRewardAd, loadRewardAd } = useRewardedAd();
+  const { loading: adLoading, loaded: isAdLoaded, loadInterstitialAd, showInterstitialAd } = useInterstitialAd();
+  const { loading: rewardGranting, grantReward } = usePromotionReward();
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const handleClueClick = useCallback(
     (clueIndex) => {
-      const showClueAndReveal = () => {
-        const clueText = problem?.clues?.[clueIndex];
-        dialog
-          .openAlert({
-            title: '단서',
-            description: clueText ?? '',
-            alertButton: '확인',
-          })
-          .then(() => {
-            onRevealClue(clueIndex);
-            loadRewardAd();
-          });
-      };
-      showRewardAd({
-        onRewarded: showClueAndReveal,
-        onDismiss: showClueAndReveal,
-      });
+      const clueText = problem?.clues?.[clueIndex];
+      dialog
+        .openAlert({
+          title: '단서',
+          description: clueText ?? '',
+          alertButton: '확인',
+        })
+        .then(() => {
+          onRevealClue(clueIndex);
+        });
     },
-    [problem, dialog, onRevealClue, showRewardAd, loadRewardAd]
+    [problem, dialog, onRevealClue]
   );
+
+  const handleShowAnswerClick = useCallback(() => {
+    if (adLoading || isProcessing || rewardGranting) {
+      return;
+    }
+
+    if (!isAdLoaded) {
+      loadInterstitialAd();
+      void dialog.openAlert({
+        title: '광고 준비 중',
+        description: '광고를 불러오고 있어요. 잠시 후 다시 시도해 주세요.',
+        alertButton: '확인',
+      });
+      return;
+    }
+
+    setIsProcessing(true);
+
+    const moveAfterAd = async () => {
+      try {
+        if (!isLoggedIn) {
+          onShowAnswer({ rewardGrantedNow: false });
+          return;
+        }
+
+        const rewardResult = await grantReward();
+        if (rewardResult.ok) {
+          onShowAnswer({
+            rewardGrantedNow: true,
+            rewardAmount: rewardResult.amount ?? null,
+          });
+          return;
+        }
+
+        await dialog.openAlert({
+          title: '포인트 지급 실패',
+          description: rewardResult.errorMessage || '포인트 지급에 실패했어요. 잠시 후 다시 시도해 주세요.',
+          alertButton: '확인',
+        });
+        onShowAnswer({ rewardGrantedNow: false });
+      } finally {
+        setIsProcessing(false);
+      }
+    };
+
+    const started = showInterstitialAd({
+      onDone: () => {
+        void moveAfterAd();
+      },
+    });
+
+    if (!started) {
+      setIsProcessing(false);
+      loadInterstitialAd();
+      void dialog.openAlert({
+        title: '광고 준비 중',
+        description: '광고를 다시 불러오는 중이에요. 잠시 후 다시 시도해 주세요.',
+        alertButton: '확인',
+      });
+    }
+  }, [
+    adLoading,
+    dialog,
+    grantReward,
+    isAdLoaded,
+    isLoggedIn,
+    isProcessing,
+    loadInterstitialAd,
+    onShowAnswer,
+    rewardGranting,
+    showInterstitialAd,
+  ]);
 
   return (
     <div className={styles.page}>
@@ -59,7 +129,7 @@ export default function MainPage({
 
         <Spacing size={24} />
         <Text typography="t5" color={GREY_900} fontWeight="semibold">
-          단서 (광고 시청 후 확인)
+          단서
         </Text>
         <Spacing size={12} />
 
@@ -69,11 +139,11 @@ export default function MainPage({
             return (
               <CTAButton
                 key={i}
-                color={revealed ? 'dark' : 'danger'}
-                variant={revealed ? 'weak' : 'fill'}
+                color="dark"
+                variant="weak"
                 display="block"
                 onClick={() => handleClueClick(i)}
-                disabled={adLoading || revealed}
+                disabled={revealed}
               >
                 {`단서 ${i + 1}`}
               </CTAButton>
@@ -83,13 +153,15 @@ export default function MainPage({
       </div>
 
       <div className={styles.bottomBar}>
-        <button
-          type="button"
-          className={styles.answerButton}
-          onClick={() => onShowAnswer()}
+        <Button
+          color="primary"
+          display="block"
+          onClick={handleShowAnswerClick}
+          loading={adLoading || isProcessing || rewardGranting}
+          disabled={adLoading || isProcessing || rewardGranting}
         >
-          정답 보기
-        </button>
+          광고 보고 정답 확인
+        </Button>
       </div>
     </div>
   );

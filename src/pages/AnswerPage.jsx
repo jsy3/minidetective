@@ -1,4 +1,4 @@
-import { Text, Spacing } from '@toss/tds-mobile';
+import { Button, Text, Spacing } from '@toss/tds-mobile';
 import styles from './AnswerPage.module.css';
 
 const GREY_900 = '#191F28';
@@ -16,20 +16,12 @@ export default function AnswerPage({ problem, onNext }) {
             {problem?.answer ?? ''}
           </Text>
         </div>
-        <Spacing size={16} />
-        <Text typography="t7" color="rgba(0, 19, 43, 0.58)">
-          토스 포인트가 지급되었어요.
-        </Text>
       </div>
 
       <div className={styles.bottomBar}>
-        <button
-          type="button"
-          className={styles.nextButton}
-          onClick={() => onNext()}
-        >
+        <Button color="primary" display="block" onClick={onNext}>
           다음 문제
-        </button>
+        </Button>
       </div>
     </div>
   );

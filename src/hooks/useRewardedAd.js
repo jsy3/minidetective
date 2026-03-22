@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState, useEffect } from 'react';
 
-/** 앱인토스 콘솔에서 발급한 보상형 광고 그룹 ID (테스트: ait-ad-test-rewarded-id) */
-const REWARDED_AD_GROUP_ID = 'ait-ad-test-rewarded-id';
+/** 앱인토스 콘솔에서 발급한 보상형 광고 그룹 ID */
+const REWARDED_AD_GROUP_ID = 'ait.v2.live.b97c6baa847d4561';
 
 /**
  * 보상형 광고 로드 및 노출 훅 (웹 프레임워크용).
@@ -9,6 +9,7 @@ const REWARDED_AD_GROUP_ID = 'ait-ad-test-rewarded-id';
  */
 export function useRewardedAd() {
   const [loading, setLoading] = useState(true);
+  const [loaded, setLoaded] = useState(false);
   const [adMob, setAdMob] = useState(null); // GoogleAdMob (동적 로드)
   const cleanupRef = useRef(null);
   const rewardCallbackRef = useRef(null);
@@ -20,10 +21,16 @@ export function useRewardedAd() {
       .then((m) => {
         if (cancelled) return;
         if (m?.GoogleAdMob) setAdMob(m.GoogleAdMob);
-        else setLoading(false);
+        else {
+          setLoading(false);
+          setLoaded(false);
+        }
       })
       .catch(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+          setLoaded(false);
+        }
       });
     return () => { cancelled = true; };
   }, []);
@@ -32,19 +39,27 @@ export function useRewardedAd() {
     const GoogleAdMob = adMob;
     if (typeof GoogleAdMob?.loadAppsInTossAdMob?.isSupported !== 'function' || !GoogleAdMob.loadAppsInTossAdMob.isSupported()) {
       setLoading(false);
+      setLoaded(false);
       return;
     }
 
     setLoading(true);
+    setLoaded(false);
     cleanupRef.current?.();
     cleanupRef.current = null;
 
     const cleanup = GoogleAdMob.loadAppsInTossAdMob({
       options: { adGroupId: REWARDED_AD_GROUP_ID },
       onEvent: (event) => {
-        if (event.type === 'loaded') setLoading(false);
+        if (event.type === 'loaded') {
+          setLoading(false);
+          setLoaded(true);
+        }
       },
-      onError: () => setLoading(false),
+      onError: () => {
+        setLoading(false);
+        setLoaded(false);
+      },
     });
 
     cleanupRef.current = cleanup;
@@ -61,9 +76,8 @@ export function useRewardedAd() {
   const showRewardAd = useCallback(({ onRewarded, onDismiss }) => {
     const GoogleAdMob = adMob;
     const isUnsupported = typeof GoogleAdMob?.showAppsInTossAdMob?.isSupported !== 'function' || !GoogleAdMob?.showAppsInTossAdMob.isSupported();
-    if (loading || isUnsupported) {
-      onDismiss?.();
-      return;
+    if (loading || !loaded || isUnsupported) {
+      return false;
     }
 
     rewardCallbackRef.current = onRewarded;
@@ -80,6 +94,12 @@ export function useRewardedAd() {
           case 'dismissed':
             dismissCallbackRef.current?.();
             dismissCallbackRef.current = null;
+            loadRewardAd();
+            break;
+          case 'failedToShow':
+            dismissCallbackRef.current?.();
+            dismissCallbackRef.current = null;
+            loadRewardAd();
             break;
           default:
             break;
@@ -88,9 +108,11 @@ export function useRewardedAd() {
       onError: () => {
         dismissCallbackRef.current?.();
         dismissCallbackRef.current = null;
+        loadRewardAd();
       },
     });
-  }, [loading, adMob]);
+    return true;
+  }, [adMob, loaded, loading, loadRewardAd]);
 
-  return { loading, loadRewardAd, showRewardAd };
+  return { loading, loaded, loadRewardAd, showRewardAd };
 }

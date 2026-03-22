@@ -14,9 +14,9 @@ export default function IntroPage({ onBrowseWithoutLogin, onLoginSuccess }) {
   const auth = useAuth();
 
   const handleTossLogin = async () => {
-    await auth.login();
-    if (auth.accessToken) {
-      onLoginSuccess?.();
+    const loginResult = await auth.login();
+    if (loginResult?.accessToken) {
+      onLoginSuccess?.(loginResult);
     }
   };
 

@@ -33,7 +33,7 @@ export function useAuth() {
         setError(
           '인가 코드를 받았어요. 토큰 발급을 위해 VITE_SERVER_BASE_URL을 설정하고, 토스 로그인 API(토큰 교환)를 연동해 주세요.'
         );
-        return;
+        return null;
       }
 
       // 2. 서버에서 인가 코드로 토큰 교환 (개발: /get-access-token → Vite 프록시 → localhost:4000)
@@ -48,12 +48,14 @@ export function useAuth() {
       if (access) {
         setAccessToken(access);
         if (refresh) setRefreshToken(refresh);
+        return { accessToken: access, refreshToken: refresh ?? null };
       } else {
         const serverError = data?.error || data?.data?.error?.reason;
         setError(
           serverError ||
             'AccessToken을 가져오지 못했어요. 서버 API를 확인해 주세요.'
         );
+        return null;
       }
     } catch (e) {
       console.error('로그인 오류:', e);
@@ -69,6 +71,7 @@ export function useAuth() {
       } else {
         setError(`로그인 중 문제가 발생했어요. (${e?.message || '알 수 없는 오류'})`);
       }
+      return null;
     } finally {
       setLoading(false);
     }
