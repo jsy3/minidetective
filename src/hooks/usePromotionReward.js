@@ -5,12 +5,35 @@ const PROMOTION_CODE = '01KHK7GMRDY7A4BVVP1HRN4XY8';
 const MIN_REWARD_AMOUNT = 1;
 const MAX_REWARD_AMOUNT = 5;
 
-function isValidRewardAmount(amount) {
-  return Number.isInteger(amount) && amount >= MIN_REWARD_AMOUNT && amount <= MAX_REWARD_AMOUNT;
+/** @typedef {{ type: 'miss' }} MissOutcome */
+/** @typedef {{ type: 'granted', amount: number }} GrantedOutcome */
+
+/**
+ * 광고·정답 플로우 확률: 다음 기회 60%, 1원 30%, 2원 5%, 3원 3%, 4원 1.5%, 5원 0.5%
+ * @returns {MissOutcome | GrantedOutcome}
+ */
+export function pickPromotionOutcome() {
+  const r = Math.random() * 100;
+  if (r < 60) {
+    return { type: 'miss' };
+  }
+  if (r < 90) {
+    return { type: 'granted', amount: 1 };
+  }
+  if (r < 95) {
+    return { type: 'granted', amount: 2 };
+  }
+  if (r < 98) {
+    return { type: 'granted', amount: 3 };
+  }
+  if (r < 99.5) {
+    return { type: 'granted', amount: 4 };
+  }
+  return { type: 'granted', amount: 5 };
 }
 
-function pickRandomRewardAmount() {
-  return Math.floor(Math.random() * (MAX_REWARD_AMOUNT - MIN_REWARD_AMOUNT + 1)) + MIN_REWARD_AMOUNT;
+function isValidRewardAmount(amount) {
+  return Number.isInteger(amount) && amount >= MIN_REWARD_AMOUNT && amount <= MAX_REWARD_AMOUNT;
 }
 
 export function usePromotionReward() {
@@ -19,7 +42,15 @@ export function usePromotionReward() {
   const grantReward = useCallback(async () => {
     setLoading(true);
     try {
-      const amount = pickRandomRewardAmount();
+      const outcome = pickPromotionOutcome();
+      if (outcome.type === 'miss') {
+        return {
+          ok: true,
+          outcome: 'miss',
+        };
+      }
+
+      const amount = outcome.amount;
       const result = await grantPromotionReward({
         params: {
           promotionCode: PROMOTION_CODE,
@@ -57,6 +88,7 @@ export function usePromotionReward() {
 
       return {
         ok: true,
+        outcome: 'granted',
         data: result,
         amount,
       };

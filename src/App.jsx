@@ -3,6 +3,7 @@ import IntroPage from './pages/IntroPage'
 import MainPage from './pages/MainPage'
 import AnswerPage from './pages/AnswerPage'
 import RewardGrantedPage from './pages/RewardGrantedPage'
+import RewardMissPage from './pages/RewardMissPage'
 import { getRandomProblem } from './data/mysteryProblems'
 import './App.css'
 
@@ -41,6 +42,11 @@ function App() {
   }, [])
 
   const goToAnswer = useCallback((options = {}) => {
+    if (options.rewardMiss) {
+      setLatestGrantedRewardAmount(null)
+      setPage('reward-miss')
+      return
+    }
     if (options.rewardGrantedNow) {
       setLatestGrantedRewardAmount(options.rewardAmount ?? null)
       setPage('reward-granted')
@@ -89,6 +95,9 @@ function App() {
           rewardAmount={latestGrantedRewardAmount}
           onContinue={() => setPage('answer')}
         />
+      )}
+      {page === 'reward-miss' && (
+        <RewardMissPage onContinue={() => setPage('answer')} />
       )}
     </>
   )

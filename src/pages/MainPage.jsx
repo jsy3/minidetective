@@ -40,6 +40,8 @@ export default function MainPage({
     [problem, dialog, onRevealClue]
   );
 
+  const clueCount = Math.max(0, problem?.clues?.length ?? 0);
+
   const handleShowAnswerClick = useCallback(() => {
     if (adLoading || isProcessing || rewardGranting) {
       return;
@@ -66,6 +68,10 @@ export default function MainPage({
 
         const rewardResult = await grantReward();
         if (rewardResult.ok) {
+          if (rewardResult.outcome === 'miss') {
+            onShowAnswer({ rewardMiss: true });
+            return;
+          }
           onShowAnswer({
             rewardGrantedNow: true,
             rewardAmount: rewardResult.amount ?? null,
@@ -134,7 +140,7 @@ export default function MainPage({
         <Spacing size={12} />
 
         <div className={styles.clueButtons}>
-          {[0, 1, 2].map((i) => {
+          {Array.from({ length: clueCount }, (_, i) => {
             const revealed = revealedClues.includes(i);
             return (
               <CTAButton
