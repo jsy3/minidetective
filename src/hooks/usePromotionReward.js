@@ -9,26 +9,27 @@ const MAX_REWARD_AMOUNT = 5;
 /** @typedef {{ type: 'granted', amount: number }} GrantedOutcome */
 
 /**
- * 광고·정답 플로우 확률: 꽝(다음 기회) 60%, 1원 30%, 2원 5%, 3원 3%, 4원 1.5%, 5원 0.5%
+ * 광고·정답 플로우 확률: 꽝 65%, 1원 33.25%, 2원 1%, 3원 0.5%, 4원 0.15%, 5원 0.1%
+ * (3원 0.5%로 줄인 비중 0.2%p는 1원에 반영) 기대값 ≈ 0.379원/회
  * `r = Math.random() * 100` ∈ [0, 100) 균등분포, 아래는 누적 상한(백분율).
- * [0,60)→miss, [60,90)→1, [90,95)→2, [95,98)→3, [98,99.5)→4, [99.5,100)→5
+ * [0,65)→miss, [65,98.25)→1, [98.25,99.25)→2, [99.25,99.75)→3, [99.75,99.9)→4, [99.9,100)→5
  * @returns {MissOutcome | GrantedOutcome}
  */
 export function pickPromotionOutcome() {
   const r = Math.random() * 100;
-  if (r < 60) {
+  if (r < 65) {
     return { type: 'miss' };
   }
-  if (r < 90) {
+  if (r < 98.25) {
     return { type: 'granted', amount: 1 };
   }
-  if (r < 95) {
+  if (r < 99.25) {
     return { type: 'granted', amount: 2 };
   }
-  if (r < 98) {
+  if (r < 99.75) {
     return { type: 'granted', amount: 3 };
   }
-  if (r < 99.5) {
+  if (r < 99.9) {
     return { type: 'granted', amount: 4 };
   }
   return { type: 'granted', amount: 5 };

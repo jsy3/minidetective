@@ -1,4 +1,5 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
+import { prefetchTossAds } from './utils/tossAdsInit'
 import IntroPage from './pages/IntroPage'
 import MainPage from './pages/MainPage'
 import AnswerPage from './pages/AnswerPage'
@@ -26,6 +27,10 @@ function persistAccessToken(token) {
 }
 
 function App() {
+  useEffect(() => {
+    prefetchTossAds().catch(() => {})
+  }, [])
+
   const [accessToken, setAccessToken] = useState(() => readStoredAccessToken())
   const [page, setPage] = useState(() => (readStoredAccessToken() ? 'main' : 'intro'))
   const [isLoggedIn, setIsLoggedIn] = useState(() => Boolean(readStoredAccessToken()))

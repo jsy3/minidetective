@@ -1,5 +1,7 @@
 import { useMemo } from 'react';
 import { Text, Spacing, CTAButton } from '@toss/tds-mobile';
+import TossBannerAd from '../components/TossBannerAd';
+import { AD_GROUP_FEED_BANNER } from '../constants/ads';
 import styles from './RewardGrantedPage.module.css';
 
 const GREY_900 = '#191F28';
@@ -35,6 +37,14 @@ export default function RewardGrantedPage({ onContinue, rewardAmount }) {
             ? `${normalizedRewardAmount}포인트가 지급됐어요.`
             : '포인트가 지급됐어요.'}
         </Text>
+
+        <TossBannerAd
+          adGroupId={AD_GROUP_FEED_BANNER}
+          className={styles.feedBannerSlot}
+          theme="auto"
+          tone="grey"
+          variant="card"
+        />
       </div>
 
       <div className={styles.bottomBar}>

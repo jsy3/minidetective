@@ -31,6 +31,13 @@
   height: 70px;
 }
 
+.feedBannerSlot {
+  width: 100%;
+  min-height: 410px;
+  margin-top: 24px;
+  box-sizing: border-box;
+}
+
 .bottomBar {
   position: fixed;
   bottom: 0;

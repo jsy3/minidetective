@@ -1,4 +1,6 @@
 import { Text, Spacing, CTAButton } from '@toss/tds-mobile';
+import TossBannerAd from '../components/TossBannerAd';
+import { AD_GROUP_FEED_BANNER } from '../constants/ads';
 import styles from './RewardMissPage.module.css';
 
 const GREY_900 = '#191F28';
@@ -24,6 +26,14 @@ export default function RewardMissPage({ onContinue }) {
         <Text typography="t6" color={GREY_500}>
           다음 문제도 도전해보세요!
         </Text>
+
+        <TossBannerAd
+          adGroupId={AD_GROUP_FEED_BANNER}
+          className={styles.feedBannerSlot}
+          theme="auto"
+          tone="grey"
+          variant="card"
+        />
       </div>
 
       <div className={styles.bottomBar}>
