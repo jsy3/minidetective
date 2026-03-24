@@ -6,6 +6,8 @@ import {
   CTAButton,
   useDialog,
 } from '@toss/tds-mobile';
+import TossBannerAd from '../components/TossBannerAd';
+import { AD_GROUP_LIST_BANNER } from '../constants/ads';
 import { useInterstitialAd } from '../hooks/useInterstitialAd';
 import { usePromotionReward } from '../hooks/usePromotionReward';
 import styles from './MainPage.module.css';
@@ -156,6 +158,14 @@ export default function MainPage({
             );
           })}
         </div>
+
+        <TossBannerAd
+          adGroupId={AD_GROUP_LIST_BANNER}
+          className={styles.listBannerSlot}
+          theme="auto"
+          tone="grey"
+          variant="card"
+        />
       </div>
 
       <div className={styles.bottomBar}>

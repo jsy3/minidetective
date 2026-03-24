@@ -9,7 +9,9 @@ const MAX_REWARD_AMOUNT = 5;
 /** @typedef {{ type: 'granted', amount: number }} GrantedOutcome */
 
 /**
- * 광고·정답 플로우 확률: 다음 기회 60%, 1원 30%, 2원 5%, 3원 3%, 4원 1.5%, 5원 0.5%
+ * 광고·정답 플로우 확률: 꽝(다음 기회) 60%, 1원 30%, 2원 5%, 3원 3%, 4원 1.5%, 5원 0.5%
+ * `r = Math.random() * 100` ∈ [0, 100) 균등분포, 아래는 누적 상한(백분율).
+ * [0,60)→miss, [60,90)→1, [90,95)→2, [95,98)→3, [98,99.5)→4, [99.5,100)→5
  * @returns {MissOutcome | GrantedOutcome}
  */
 export function pickPromotionOutcome() {

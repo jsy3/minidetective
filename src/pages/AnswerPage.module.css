@@ -4,6 +4,7 @@
   max-width: 375px;
   margin: 0 auto;
   background-color: var(--token-tds-color-white, #ffffff);
+  /* 피드형 배너(권장 410px) + 하단 고정 바 여백 */
   padding: 8px 20px 120px;
 }
 
@@ -15,6 +16,14 @@
   padding: 16px;
   background-color: var(--token-tds-color-grey-background, #f2f4f6);
   border-radius: 12px;
+}
+
+/* 피드형 배너: 가이드 고정형 권장 높이 410px, 전체 너비 */
+.feedBannerSlot {
+  width: 100%;
+  min-height: 410px;
+  margin-top: 16px;
+  box-sizing: border-box;
 }
 
 .bottomBar {
