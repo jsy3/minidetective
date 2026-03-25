@@ -1,5 +1,8 @@
-import { StrictMode, Fragment } from 'react'
+import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import { TDSMobileAITProvider } from '@toss/tds-mobile-ait'
+import App from './App.jsx'
+import { BrowserTDSProvider } from './BrowserTDSProvider.jsx'
 import { ErrorBoundary } from './ErrorBoundary'
 import './index.css'
 
@@ -35,31 +38,28 @@ function isTossApp() {
   return map && typeof map === 'object' && 'deploymentId' in map
 }
 
-Promise.all([
-  import('@toss/tds-mobile-ait'),
-  import('./App.jsx'),
-  import('./BrowserTDSProvider.jsx'),
-])
-  .then(([tdsModule, appModule, browserTDS]) => {
-    const { TDSMobileAITProvider } = tdsModule
-    const { BrowserTDSProvider } = browserTDS
-    const App = appModule.default
-    const Provider = isTossApp() ? TDSMobileAITProvider : BrowserTDSProvider
-    root.render(
-      <StrictMode>
-        <ErrorBoundary>
-          <Provider>
-            <App />
-          </Provider>
-        </ErrorBoundary>
-      </StrictMode>
-    )
-  })
-  .catch((err) => {
-    console.error('App load error:', err)
-    root.render(
-      <StrictMode>
-        <ErrorScreen message={err?.message ?? String(err)} />
-      </StrictMode>
-    )
-  })
+try {
+  const Provider = isTossApp() ? TDSMobileAITProvider : BrowserTDSProvider
+  if (typeof App !== 'function') {
+    throw new Error('App 컴포넌트를 불러오지 못했습니다. (default export 확인)')
+  }
+  if (typeof Provider !== 'function') {
+    throw new Error('TDS Provider를 불러오지 못했습니다.')
+  }
+  root.render(
+    <StrictMode>
+      <ErrorBoundary>
+        <Provider>
+          <App />
+        </Provider>
+      </ErrorBoundary>
+    </StrictMode>,
+  )
+} catch (err) {
+  console.error('App bootstrap error:', err)
+  root.render(
+    <StrictMode>
+      <ErrorScreen message={err?.message ?? String(err)} />
+    </StrictMode>,
+  )
+}

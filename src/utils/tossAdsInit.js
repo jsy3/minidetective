@@ -1,9 +1,22 @@
 /**
- * TossAds.initialize는 앱당 1회만 호출해야 함 (중복 시 onInitialized 미호출 등으로 배너가 안 붙을 수 있음).
+ * TossAds.initialize는 앱당 1회만 호출해야 함.
+ * 정적 import로 청크 로드 대기 없이 attach 시점을 앞당김.
  * @see https://developers-apps-in-toss.toss.im/bedrock/reference/framework/광고/BannerAd.md
  */
+import { TossAds } from '@apps-in-toss/web-framework';
+
 let resolvedTossAds = null;
 let inFlight = null;
+
+function tossAdsSupported() {
+  return (
+    TossAds &&
+    typeof TossAds.initialize?.isSupported === 'function' &&
+    TossAds.initialize.isSupported() &&
+    typeof TossAds.attachBanner?.isSupported === 'function' &&
+    TossAds.attachBanner.isSupported()
+  );
+}
 
 export function prefetchTossAds() {
   return whenTossAdsReady();
@@ -16,15 +29,7 @@ export function whenTossAdsReady() {
 
   if (!inFlight) {
     inFlight = (async () => {
-      const m = await import('@apps-in-toss/web-framework');
-      const TossAds = m.TossAds;
-      if (
-        !TossAds ||
-        typeof TossAds.initialize?.isSupported !== 'function' ||
-        !TossAds.initialize.isSupported() ||
-        typeof TossAds.attachBanner?.isSupported !== 'function' ||
-        !TossAds.attachBanner.isSupported()
-      ) {
+      if (!tossAdsSupported()) {
         return null;
       }
 
@@ -50,4 +55,10 @@ export function whenTossAdsReady() {
   }
 
   return inFlight;
+}
+
+if (typeof window !== 'undefined') {
+  queueMicrotask(() => {
+    prefetchTossAds().catch(() => {});
+  });
 }

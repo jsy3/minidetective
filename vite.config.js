@@ -10,6 +10,11 @@ export default defineConfig({
   root: __dirname,
   publicDir: 'public',
   plugins: [react()],
+  // @apps-in-toss/* 트리에 중첩된 react(19 등)와 앱의 react 18 이 섞이면
+  // Invalid hook call / minified React 오류가 날 수 있음
+  resolve: {
+    dedupe: ['react', 'react-dom'],
+  },
   server: {
     port: 5173,
     host: true,

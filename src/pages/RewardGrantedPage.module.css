@@ -4,6 +4,18 @@
   max-width: 375px;
   margin: 0 auto;
   background-color: var(--token-tds-color-white, #ffffff);
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   padding: 24px 20px 120px;
   box-sizing: border-box;
 }
@@ -31,11 +43,25 @@
   height: 70px;
 }
 
+/*
+ * 피드형 고정형: height 410px 권장, 주변 8px+
+ * @see https://developers-apps-in-toss.toss.im/ads/develop.html
+ */
 .feedBannerSlot {
-  width: 100%;
+  align-self: stretch;
+  flex-shrink: 0;
+  position: relative;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100vw;
+  max-width: 100vw;
+  height: 410px;
   min-height: 410px;
   margin-top: 24px;
+  margin-bottom: 8px;
   box-sizing: border-box;
+  overflow: hidden;
+  border-radius: 12px;
 }
 
 .bottomBar {

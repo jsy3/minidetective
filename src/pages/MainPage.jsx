@@ -81,11 +81,7 @@ export default function MainPage({
           return;
         }
 
-        await dialog.openAlert({
-          title: '포인트 지급 실패',
-          description: rewardResult.errorMessage || '포인트 지급에 실패했어요. 잠시 후 다시 시도해 주세요.',
-          alertButton: '확인',
-        });
+        // 지급 API 오류: 별도 팝업 없이 정답 화면으로 (당회 미지급과 동일 처리)
         onShowAnswer({ rewardGrantedNow: false });
       } finally {
         setIsProcessing(false);

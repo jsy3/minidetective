@@ -27,10 +27,6 @@ function persistAccessToken(token) {
 }
 
 function App() {
-  useEffect(() => {
-    prefetchTossAds().catch(() => {})
-  }, [])
-
   const [accessToken, setAccessToken] = useState(() => readStoredAccessToken())
   const [page, setPage] = useState(() => (readStoredAccessToken() ? 'main' : 'intro'))
   const [isLoggedIn, setIsLoggedIn] = useState(() => Boolean(readStoredAccessToken()))
@@ -59,6 +55,10 @@ function App() {
     }
     setLatestGrantedRewardAmount(null)
     setPage('answer')
+  }, [])
+
+  useEffect(() => {
+    prefetchTossAds().catch(() => {})
   }, [])
 
   return (
