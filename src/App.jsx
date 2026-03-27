@@ -28,7 +28,7 @@ function persistAccessToken(token) {
 
 function App() {
   const [accessToken, setAccessToken] = useState(() => readStoredAccessToken())
-  const [page, setPage] = useState(() => (readStoredAccessToken() ? 'main' : 'intro'))
+  const [page, setPage] = useState('intro')
   const [isLoggedIn, setIsLoggedIn] = useState(() => Boolean(readStoredAccessToken()))
   const [currentProblem, setCurrentProblem] = useState(() => getRandomProblem())
   const [revealedClues, setRevealedClues] = useState([]) // 현재 문제에서 확인한 단서 인덱스 [0,1,2]
@@ -65,10 +65,17 @@ function App() {
     <>
       {page === 'intro' && (
         <IntroPage
+          hasStoredAccessToken={Boolean(accessToken ?? readStoredAccessToken())}
           onBrowseWithoutLogin={() => {
             setIsLoggedIn(false)
             setAccessToken(null)
             persistAccessToken(null)
+            setPage('main')
+          }}
+          onGoToMain={() => {
+            const token = accessToken ?? readStoredAccessToken()
+            setIsLoggedIn(Boolean(token))
+            if (token && !accessToken) setAccessToken(token)
             setPage('main')
           }}
           onLoginSuccess={(loginResult) => {

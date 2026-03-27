@@ -29,14 +29,6 @@ export default defineConfig({
         target: 'http://localhost:4000',
         changeOrigin: true,
       },
-      '/grant-promotion-reward': {
-        target: 'http://localhost:4000',
-        changeOrigin: true,
-      },
-      '/grant-promotion-reward-by-login': {
-        target: 'http://localhost:4000',
-        changeOrigin: true,
-      },
       '/latest-access-token': {
         target: 'http://localhost:4000',
         changeOrigin: true,

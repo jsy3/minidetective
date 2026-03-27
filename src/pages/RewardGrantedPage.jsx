@@ -2,6 +2,7 @@ import { useEffect, useMemo } from 'react';
 import { Text, Spacing, CTAButton } from '@toss/tds-mobile';
 import TossBannerAd from '../components/TossBannerAd';
 import { AD_GROUP_FEED_BANNER_REWARD } from '../constants/ads';
+import { playRewardSuccessFeedback } from '../utils/playRewardSuccessFeedback';
 import styles from './RewardGrantedPage.module.css';
 
 const GREY_900 = '#191F28';
@@ -17,18 +18,7 @@ export default function RewardGrantedPage({ onContinue, rewardAmount }) {
   }, [rewardAmount]);
 
   useEffect(() => {
-    let cancelled = false;
-    import('@apps-in-toss/web-framework')
-      .then((mod) => {
-        if (cancelled || typeof mod.generateHapticFeedback !== 'function') {
-          return;
-        }
-        void mod.generateHapticFeedback({ type: 'success' }).catch(() => {});
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
+    playRewardSuccessFeedback();
   }, []);
 
   return (
