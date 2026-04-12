@@ -29,3 +29,9 @@ dist-ssr
 .granite
 
 .vercel
+
+# Toss mTLS · 비밀키 (실제 파일은 커밋하지 않음 — Vercel은 CLIENT_*_BASE64 사용)
+server/cert/*.crt
+server/cert/*.key
+server/cert/*.pem
+!server/cert/.gitkeep

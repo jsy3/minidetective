@@ -4,13 +4,13 @@ import {
   CTAButton,
   Spacing,
   Badge,
+  Asset,
   Text,
 } from '@toss/tds-mobile';
 import { useAuth } from '../hooks/useAuth';
 import styles from './IntroPage.module.css';
 
 const GREY_900 = '#191F28';
-const BLUE_500 = '#3182f6';
 
 export default function IntroPage({
   hasStoredAccessToken = false,
@@ -30,55 +30,68 @@ export default function IntroPage({
 
   return (
     <div className={styles.page}>
-      <Spacing size={29} />
-
       <div className={styles.content}>
-        <div className={styles.heroFrame}>
-          <img
+        <div className={styles.heroCard}>
+          <Asset.Image
             src="https://static.toss.im/2d-emojis/png/4x/u1F575_u1F3FE_u200D_u2642.png"
             alt=""
-            className={styles.heroEmoji}
+            frameShape={{
+              width: 112,
+              height: 112,
+              radius: 24,
+            }}
+            backgroundColor="transparent"
           />
         </div>
+
         <Top
+          upperGap={12}
+          lowerGap={20}
           title={
             <Top.TitleParagraph size={22} color={GREY_900}>
               1분만에 추리 문제 풀고
               <br />
-              포인트 받아요
+              최대 5포인트 받아요
             </Top.TitleParagraph>
           }
           subtitleBottom={
             !isLoggedIn ? (
-              <Top.SubtitleParagraph>
+              <Top.SubtitleParagraph size={15}>
                 로그인해야 포인트를 받을 수 있어요.
               </Top.SubtitleParagraph>
             ) : null
           }
         />
-        <div className={styles.sundayPromo} role="status">
+
+        <div className={styles.eventSection} role="status">
           <Badge size="large" variant="fill" color="yellow">
             이벤트
           </Badge>
-          <Spacing size={12} />
+          <Spacing size={8} />
           <Text
-            typography="t3"
+            typography="t4"
             fontWeight="bold"
             color={GREY_900}
             display="block"
             textAlign="center"
-            className={styles.sundayPromoLine}
+            className={styles.eventLine}
           >
-            일요일은 포인트 당첨 확률이{' '}
-            <span style={{ color: BLUE_500 }}>2배</span>!
+            일요일에는 포인트 당첨 확률이{' '}
+            <span className={styles.eventEmphasis}>2배</span>!
           </Text>
         </div>
       </div>
 
       {auth.error && (
-        <div className={styles.error} role="alert">
+        <Text
+          typography="t6"
+          color="var(--token-tds-color-red-500, #e53935)"
+          display="block"
+          className={styles.error}
+          role="alert"
+        >
           {auth.error}
-        </div>
+        </Text>
       )}
 
       {isLoggedIn ? (

@@ -1,7 +1,11 @@
-// 토스 로그인: 토큰 교환 API 주소
-// - 개발(DEV): 빈 문자열 → 같은 출처 호출, Vite가 /get-access-token 을 localhost:4000 으로 프록시
-//   → 샌드박스/브라우저 모두 동일 출처로 요청하므로 연결 문제 해소
-// - 프로덕션: VITE_SERVER_BASE_URL 사용 (배포 백엔드 주소)
-const envURL = import.meta.env.VITE_SERVER_BASE_URL ?? '';
-export const baseURL =
-  import.meta.env.DEV ? '' : (envURL || 'http://localhost:4000');
+// 토스 로그인 백엔드 origin (문서: generate-token 등은 서버에서만 호출)
+// @see https://developers-apps-in-toss.toss.im/login/develop.html
+// - 개발: '' + Vite 프록시 → localhost:4000
+// - 프로덕션: VITE_SERVER_BASE_URL → REPO_TOKEN_SERVER_ORIGIN → ''(동일 출처)
+const envURL = (import.meta.env.VITE_SERVER_BASE_URL ?? '').trim().replace(/\/$/, '');
+
+/** Vercel 프로덕션 토큰 서버 (배포 별칭). VITE_SERVER_BASE_URL 이 있으면 그쪽이 우선입니다. */
+const REPO_TOKEN_SERVER_ORIGIN = 'https://server-psi-sandy-87.vercel.app';
+
+const prodOrigin = (envURL || REPO_TOKEN_SERVER_ORIGIN).trim().replace(/\/$/, '');
+export const baseURL = import.meta.env.DEV ? '' : prodOrigin;

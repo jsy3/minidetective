@@ -15,47 +15,44 @@
   padding: 0 20px;
 }
 
-.heroFrame {
+/* 이벤트·본문과 동일한 가로폭(콘텐츠 패딩 기준 100%), 이모지만 중앙 */
+.heroCard {
   width: 100%;
   height: 160px;
-  background-color: var(--token-tds-color-grey-background, #f2f4f6);
+  margin-bottom: 8px;
   border-radius: 24px;
+  background-color: var(--token-tds-color-grey-background, #f2f4f6);
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 4px;
+  box-sizing: border-box;
 }
 
-.heroEmoji {
-  width: 100%;
-  max-width: 112px;
-  aspect-ratio: 1 / 1;
-}
-
-.sundayPromoLine {
-  white-space: nowrap;
-}
-
-.sundayPromo {
-  margin-top: 16px;
-  padding: 20px 18px 22px;
-  border-radius: 20px;
+/* TDS 톤에 맞춘 이벤트 블록 (과한 그림자·이중 테두리 완화) */
+.eventSection {
+  margin-top: 8px;
+  padding: 20px 16px 22px;
+  border-radius: 16px;
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
   background-color: var(--token-tds-color-blue-background, #e8f3ff);
-  border: 2px solid var(--token-tds-color-primary-default, #3182f6);
-  box-shadow:
-    0 0 0 1px rgba(49, 130, 246, 0.12),
-    0 10px 28px rgba(49, 130, 246, 0.22);
+  border: 1px solid var(--token-tds-color-primary-default, #3182f6);
+  box-shadow: 0 4px 16px rgba(49, 130, 246, 0.12);
+}
+
+.eventLine {
+  white-space: nowrap;
+}
+
+.eventEmphasis {
+  color: var(--token-tds-color-primary-default, #3182f6);
 }
 
 .error {
   padding: 12px 20px;
-  color: var(--token-tds-color-red-500, #e53935);
-  font-size: 14px;
-  background: rgba(229, 57, 53, 0.08);
   margin: 0 20px 8px;
   border-radius: 8px;
+  background: rgba(229, 57, 53, 0.08);
 }

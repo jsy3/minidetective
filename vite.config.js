@@ -25,6 +25,10 @@ export default defineConfig({
         target: 'http://localhost:4000',
         changeOrigin: true,
       },
+      '/refresh-access-token': {
+        target: 'http://localhost:4000',
+        changeOrigin: true,
+      },
       '/get-user-info': {
         target: 'http://localhost:4000',
         changeOrigin: true,

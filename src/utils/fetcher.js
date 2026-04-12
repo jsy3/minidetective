@@ -12,6 +12,21 @@ async function parseResponseBody(res) {
   }
 }
 
+/**
+ * 백엔드/토스 OAuth 오류 본문을 사용자용 문자열로 (문서: invalid_grant, resultType FAIL 등)
+ * @param {Record<string, unknown>|null|undefined} data
+ */
+export function messageFromApiError(data, fallback) {
+  if (!data || typeof data !== 'object') return fallback;
+  const e = data.error;
+  if (typeof e === 'string') return e;
+  if (e && typeof e === 'object' && typeof e.reason === 'string') return e.reason;
+  if (e && typeof e === 'object' && typeof e.errorCode === 'string') {
+    return e.reason ? `${e.errorCode}: ${e.reason}` : e.errorCode;
+  }
+  return fallback;
+}
+
 export async function post(url, body, token) {
   const res = await fetch(`${baseURL}${url}`, {
     method: 'POST',
@@ -23,9 +38,8 @@ export async function post(url, body, token) {
   });
   const data = await parseResponseBody(res);
   if (res.ok) return data ?? {};
-  const message =
-    data?.error || `요청 실패 (${res.status} ${res.statusText || 'Unknown'})`;
-  throw new Error(message);
+  const fallback = `요청 실패 (${res.status} ${res.statusText || 'Unknown'})`;
+  throw new Error(messageFromApiError(data, fallback));
 }
 
 export async function get(url, token) {
@@ -38,7 +52,6 @@ export async function get(url, token) {
   });
   const data = await parseResponseBody(res);
   if (res.ok) return data ?? {};
-  const message =
-    data?.error || `요청 실패 (${res.status} ${res.statusText || 'Unknown'})`;
-  throw new Error(message);
+  const fallback = `요청 실패 (${res.status} ${res.statusText || 'Unknown'})`;
+  throw new Error(messageFromApiError(data, fallback));
 }

@@ -8,6 +8,10 @@ const PORT = process.env.PORT || 4000;
 const AUTH_API_BASE = process.env.AUTH_API_BASE || 'https://apps-in-toss-api.toss.im/api-partner/v1/apps-in-toss/user/oauth2';
 const DECRYPTION_KEY_BASE64 = process.env.DECRYPTION_KEY_BASE64;
 const AAD_STRING = process.env.AAD_STRING || 'TOSS';
+const PROMOTION_API_BASE = process.env.PROMOTION_API_BASE || 'https://apps-in-toss-api.toss.im/api-partner/v1/apps-in-toss/promotion/execute-promotion';
+const PROMOTION_CODE = process.env.PROMOTION_CODE || '01KHK7GMRDY7A4BVVP1HRN4XY8';
+const MIN_PROMOTION_AMOUNT = 1;
+const MAX_PROMOTION_AMOUNT = 5;
 
 const tlsClient = process.env.CLIENT_CERT_BASE64 && process.env.CLIENT_KEY_BASE64
   ? createTLSClientFromBase64(process.env.CLIENT_CERT_BASE64, process.env.CLIENT_KEY_BASE64)
@@ -36,10 +40,68 @@ function isSuccessResult(payload) {
   return payload?.resultType === 'SUCCESS';
 }
 
+/** Toss 토큰 API가 HTTP 200 + resultType FAIL 인 경우 등, fetch 쪽에서 ok로만 보면 놓치는 실패를 명확한 오류로 돌려줌 */
+function tokenExchangeFailureStatus(httpStatus) {
+  if (httpStatus && httpStatus >= 400) return httpStatus;
+  return 502;
+}
+
+function tokenExchangeErrorMessage(parsed) {
+  if (!parsed) return '토큰 교환에 실패했어요.';
+  if (typeof parsed.error === 'string') return parsed.error;
+  if (parsed.error?.reason) return parsed.error.reason;
+  return '토큰 교환에 실패했어요.';
+}
+
+/** login-me 등 OAuth API 실패 시 HTTP 200 + resultType FAIL 을 클라이언트가 구분할 수 있게 정리 (문서: generate-token / login-me 실패 응답) */
+function oauthApiFailure(res, httpStatus, parsed, fallbackMessage) {
+  const status = tokenExchangeFailureStatus(httpStatus);
+  let msg = fallbackMessage;
+  if (parsed != null) {
+    if (typeof parsed.error === 'string') msg = parsed.error;
+    else if (parsed.error?.reason) msg = parsed.error.reason;
+  }
+  return res.status(status).json({
+    error: msg,
+    toss: parsed,
+  });
+}
+
+function failPayload(message, payload) {
+  const errorCode = payload?.error?.errorCode;
+  const reason = payload?.error?.reason;
+  const extra = [errorCode, reason].filter(Boolean).join(': ');
+  return {
+    error: extra ? `${message} (${extra})` : message,
+    data: payload ?? null,
+  };
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function pickRandomPromotionAmount() {
+  return Math.floor(Math.random() * (MAX_PROMOTION_AMOUNT - MIN_PROMOTION_AMOUNT + 1)) + MIN_PROMOTION_AMOUNT;
+}
+
+function isValidPromotionAmount(amount) {
+  return Number.isInteger(amount) && amount >= MIN_PROMOTION_AMOUNT && amount <= MAX_PROMOTION_AMOUNT;
+}
+
 async function exchangeAccessToken({ authorizationCode, referrer }) {
   const response = await tlsClient.post(`${AUTH_API_BASE}/generate-token`, {
     authorizationCode,
     referrer,
+  });
+  const parsed = parseJsonSafely(response.data);
+  return { response, parsed };
+}
+
+/** 문서 §3 POST .../oauth2/refresh-token */
+async function exchangeRefreshToken({ refreshToken }) {
+  const response = await tlsClient.post(`${AUTH_API_BASE}/refresh-token`, {
+    refreshToken,
   });
   const parsed = parseJsonSafely(response.data);
   return { response, parsed };
@@ -53,14 +115,181 @@ async function fetchUserInfoByAccessToken(accessToken) {
   return { response, parsed };
 }
 
+async function executePromotionByUserKey(tossUserKey, amount) {
+  if (!isValidPromotionAmount(amount)) {
+    return {
+      ok: false,
+      statusCode: 500,
+      payload: {
+        error: `프로모션 지급 금액이 유효하지 않아요. (${amount})`,
+      },
+    };
+  }
+
+  const userKeyHeader = String(tossUserKey);
+
+  const keyResponse = await tlsClient.post(
+    `${PROMOTION_API_BASE}/get-key`,
+    {},
+    { 'x-toss-user-key': userKeyHeader }
+  );
+  const keyParsed = parseJsonSafely(keyResponse.data);
+  if (!keyParsed || keyResponse.statusCode !== 200 || !isSuccessResult(keyParsed)) {
+    console.error('프로모션 key 발급 실패 응답:', keyParsed);
+    return {
+      ok: false,
+      statusCode: keyResponse.statusCode || 502,
+      payload: keyParsed
+        ? failPayload('프로모션 key 발급 실패', keyParsed)
+        : { error: '프로모션 key 발급 응답 파싱 실패' },
+    };
+  }
+
+  const rewardKey = keyParsed?.success?.key;
+  if (!rewardKey) {
+    return {
+      ok: false,
+      statusCode: 502,
+      payload: { error: '프로모션 key 발급에 실패했어요.' },
+    };
+  }
+
+  const executeResponse = await tlsClient.post(
+    `${PROMOTION_API_BASE}`,
+    {
+      promotionCode: PROMOTION_CODE,
+      key: rewardKey,
+      amount,
+    },
+    { 'x-toss-user-key': userKeyHeader }
+  );
+  const executeParsed = parseJsonSafely(executeResponse.data);
+  if (!executeParsed || executeResponse.statusCode !== 200 || !isSuccessResult(executeParsed)) {
+    console.error('프로모션 지급 실행 실패 응답:', executeParsed);
+    return {
+      ok: false,
+      statusCode: executeResponse.statusCode || 502,
+      payload: executeParsed
+        ? failPayload('프로모션 지급 실행 실패', executeParsed)
+        : { error: '프로모션 지급 실행 응답 파싱 실패' },
+    };
+  }
+
+  let resultParsed = null;
+  let resultStatusCode = 0;
+  const maxAttempts = 5;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const resultResponse = await tlsClient.post(
+      `${PROMOTION_API_BASE}/execution-result`,
+      {
+        promotionCode: PROMOTION_CODE,
+        key: rewardKey,
+      },
+      { 'x-toss-user-key': userKeyHeader }
+    );
+    resultStatusCode = resultResponse.statusCode || 0;
+    resultParsed = parseJsonSafely(resultResponse.data);
+
+    if (!resultParsed || resultStatusCode !== 200) {
+      const errorCode = resultParsed?.error?.errorCode;
+      if (errorCode === '50000') {
+        break;
+      }
+      console.error('프로모션 지급 결과 조회 실패 응답:', resultParsed);
+      return {
+        ok: false,
+        statusCode: resultStatusCode || 502,
+        payload: resultParsed
+          ? failPayload('프로모션 지급 결과 조회 실패', resultParsed)
+          : { error: '프로모션 지급 결과 조회 응답 파싱 실패' },
+      };
+    }
+
+    if (!isSuccessResult(resultParsed)) {
+      console.error('프로모션 지급 결과 조회 실패 응답:', resultParsed);
+      const errorCode = resultParsed?.error?.errorCode;
+      if (errorCode === '50000') {
+        break;
+      }
+      return {
+        ok: false,
+        statusCode: resultStatusCode || 502,
+        payload: failPayload('프로모션 지급 결과 조회 실패', resultParsed),
+      };
+    }
+
+    const executionResult = resultParsed?.success;
+    if (executionResult === 'SUCCESS') {
+      break;
+    }
+
+    if (executionResult === 'FAILED') {
+      return {
+        ok: false,
+        statusCode: 409,
+        payload: failPayload('프로모션 지급 결과가 FAILED입니다.', resultParsed),
+      };
+    }
+
+    if (attempt < maxAttempts) {
+      await sleep(1000);
+    }
+  }
+
+  if (resultParsed?.success !== 'SUCCESS') {
+    const errorCode = resultParsed?.error?.errorCode;
+    // 콘솔 테스트 단계에서 execution-result가 간헐적으로 50000을 반환할 수 있어,
+    // execute-promotion 성공 시에는 완료로 간주하고 경고만 전달합니다.
+    if (errorCode === '50000') {
+      return {
+        ok: true,
+        statusCode: 200,
+        payload: {
+          key: rewardKey,
+          amount,
+          executionResult: 'UNKNOWN',
+          executeResponse: executeParsed,
+          resultResponse: resultParsed,
+          warning: 'execution-result 조회에서 50000(Unknown error)이 발생했지만 지급 실행은 성공했습니다.',
+        },
+      };
+    }
+
+    return {
+      ok: false,
+      statusCode: 409,
+      payload: failPayload(
+        `프로모션 지급 결과가 아직 확정되지 않았어요. (${resultParsed?.success || 'UNKNOWN'})`,
+        resultParsed
+      ),
+    };
+  }
+
+  return {
+    ok: true,
+    statusCode: 200,
+    payload: {
+      key: rewardKey,
+      amount,
+      executionResult: resultParsed?.success ?? 'UNKNOWN',
+      executeResponse: executeParsed,
+      resultResponse: resultParsed,
+    },
+  };
+}
+
 app.post('/get-access-token', async (req, res) => {
-  const { authorizationCode, referrer } = req.body || {};
+  const body = req.body || {};
+  const authorizationCode =
+    typeof body.authorizationCode === 'string' ? body.authorizationCode.trim() : '';
+  const referrer = typeof body.referrer === 'string' ? body.referrer.trim() : '';
 
   if (!authorizationCode || !referrer) {
     return res.status(400).json({
-      error: 'authorizationCode, referrer 필요',
+      error: 'authorizationCode, referrer 필요 (문서: generate-token 필수 문자열)',
     });
   }
+  // referrer: SDK가 주는 값(sandbox | DEFAULT 등)을 그대로 토스 API에 전달
 
   if (!tlsClient) {
     console.error('mTLS 미설정: CLIENT_CERT_PATH, CLIENT_KEY_PATH 를 .env.server 에 설정하세요.');
@@ -81,7 +310,11 @@ app.post('/get-access-token', async (req, res) => {
     }
 
     if (response.statusCode !== 200 || !isSuccessResult(parsed)) {
-      return res.status(response.statusCode).json(parsed);
+      const status = tokenExchangeFailureStatus(response.statusCode);
+      return res.status(status).json({
+        error: tokenExchangeErrorMessage(parsed),
+        toss: parsed,
+      });
     }
 
     const accessToken = parsed?.success?.accessToken ?? null;
@@ -101,6 +334,208 @@ app.post('/get-access-token', async (req, res) => {
     console.error('get-access-token 실패:', e);
     res.status(500).json({
       error: e.message || '토큰 발급 중 오류가 발생했습니다.',
+    });
+  }
+});
+
+app.post('/refresh-access-token', async (req, res) => {
+  const body = req.body || {};
+  const refreshToken =
+    typeof body.refreshToken === 'string' ? body.refreshToken.trim() : '';
+
+  if (!refreshToken) {
+    return res.status(400).json({
+      error: 'refreshToken 필요 (문서: refresh-token API)',
+    });
+  }
+
+  if (!tlsClient) {
+    return res.status(500).json({
+      error: '서버 설정 필요: 앱인토스 콘솔에서 발급한 인증서로 CLIENT_CERT_PATH, CLIENT_KEY_PATH 를 설정하세요.',
+    });
+  }
+
+  try {
+    const { response, parsed } = await exchangeRefreshToken({ refreshToken });
+    if (!parsed) {
+      return res.status(502).json({
+        error: '토큰 재발급 API가 비어있거나 JSON이 아닌 응답을 반환했어요.',
+      });
+    }
+
+    if (response.statusCode !== 200 || !isSuccessResult(parsed)) {
+      const status = tokenExchangeFailureStatus(response.statusCode);
+      return res.status(status).json({
+        error: tokenExchangeErrorMessage(parsed),
+        toss: parsed,
+      });
+    }
+
+    const accessToken = parsed?.success?.accessToken ?? null;
+    if (accessToken) {
+      latestAccessTokenRecord = {
+        accessToken,
+        referrer: latestAccessTokenRecord?.referrer ?? 'DEFAULT',
+        issuedAt: new Date().toISOString(),
+      };
+    }
+
+    return res.status(200).json({
+      statusCode: response.statusCode,
+      data: parsed,
+    });
+  } catch (e) {
+    console.error('refresh-access-token 실패:', e);
+    res.status(500).json({
+      error: e.message || '토큰 재발급 중 오류가 발생했습니다.',
+    });
+  }
+});
+
+app.post('/grant-promotion-reward', async (req, res) => {
+  const authHeader = req.headers.authorization;
+  const accessToken = authHeader && authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+
+  if (!accessToken) {
+    return res.status(401).json({ error: 'Authorization: Bearer <accessToken> 필요' });
+  }
+
+  if (!PROMOTION_CODE) {
+    return res.status(500).json({ error: '서버 설정 필요: PROMOTION_CODE 를 .env.server 에 설정하세요.' });
+  }
+
+  if (!tlsClient) {
+    return res.status(500).json({
+      error: '서버 설정 필요: CLIENT_CERT_PATH, CLIENT_KEY_PATH 를 .env.server 에 설정하세요.',
+    });
+  }
+
+  try {
+    const { response: userInfoResponse, parsed: userInfoParsed } =
+      await fetchUserInfoByAccessToken(accessToken);
+    if (!userInfoParsed || userInfoResponse.statusCode !== 200 || !isSuccessResult(userInfoParsed)) {
+      return oauthApiFailure(
+        res,
+        userInfoResponse.statusCode,
+        userInfoParsed,
+        '사용자 정보 조회 응답 파싱 실패'
+      );
+    }
+
+    const tossUserKey = userInfoParsed?.success?.userKey;
+    if (tossUserKey == null || tossUserKey === '') {
+      return res.status(400).json({ error: '토스 userKey를 찾을 수 없어요. 로그인 정보를 확인해 주세요.' });
+    }
+
+    const promotionAmount = pickRandomPromotionAmount();
+    if (!isValidPromotionAmount(promotionAmount)) {
+      return res.status(500).json({ error: `프로모션 지급 금액 검증에 실패했어요. (${promotionAmount})` });
+    }
+    const promotionResult = await executePromotionByUserKey(tossUserKey, promotionAmount);
+    if (!promotionResult.ok) {
+      return res.status(promotionResult.statusCode).json(promotionResult.payload);
+    }
+
+    return res.status(200).json({
+      data: {
+        ...promotionResult.payload,
+        promotionCode: PROMOTION_CODE,
+      },
+    });
+  } catch (e) {
+    console.error('grant-promotion-reward 실패:', e);
+    return res.status(500).json({
+      error: e.message || '프로모션 지급 중 오류가 발생했습니다.',
+    });
+  }
+});
+
+app.post('/grant-promotion-reward-by-login', async (req, res) => {
+  const b = req.body || {};
+  const authorizationCode =
+    typeof b.authorizationCode === 'string' ? b.authorizationCode.trim() : '';
+  const referrer = typeof b.referrer === 'string' ? b.referrer.trim() : '';
+  if (!authorizationCode || !referrer) {
+    return res.status(400).json({
+      error: 'authorizationCode, referrer 필요',
+    });
+  }
+
+  if (!tlsClient) {
+    return res.status(500).json({
+      error: '서버 설정 필요: CLIENT_CERT_PATH, CLIENT_KEY_PATH 를 .env.server 에 설정하세요.',
+    });
+  }
+
+  if (!PROMOTION_CODE) {
+    return res.status(500).json({ error: '서버 설정 필요: PROMOTION_CODE 를 .env.server 에 설정하세요.' });
+  }
+
+  try {
+    const { response: tokenResponse, parsed: tokenParsed } = await exchangeAccessToken({
+      authorizationCode,
+      referrer,
+    });
+    if (!tokenParsed) {
+      return res.status(502).json({
+        error: '토큰 교환 API가 비어있거나 JSON이 아닌 응답을 반환했어요.',
+      });
+    }
+    if (tokenResponse.statusCode !== 200 || !isSuccessResult(tokenParsed)) {
+      const status = tokenExchangeFailureStatus(tokenResponse.statusCode);
+      return res.status(status).json({
+        error: tokenExchangeErrorMessage(tokenParsed),
+        toss: tokenParsed,
+      });
+    }
+
+    const accessToken = tokenParsed?.success?.accessToken;
+    if (!accessToken) {
+      return res.status(502).json({ error: '토큰 교환 성공 응답에서 accessToken을 찾지 못했어요.' });
+    }
+
+    latestAccessTokenRecord = {
+      accessToken,
+      referrer,
+      issuedAt: new Date().toISOString(),
+    };
+
+    const { response: userInfoResponse, parsed: userInfoParsed } =
+      await fetchUserInfoByAccessToken(accessToken);
+    if (!userInfoParsed || userInfoResponse.statusCode !== 200 || !isSuccessResult(userInfoParsed)) {
+      return oauthApiFailure(
+        res,
+        userInfoResponse.statusCode,
+        userInfoParsed,
+        '사용자 정보 조회 응답 파싱 실패'
+      );
+    }
+
+    const tossUserKey = userInfoParsed?.success?.userKey;
+    if (tossUserKey == null || tossUserKey === '') {
+      return res.status(400).json({ error: '토스 userKey를 찾을 수 없어요. 로그인 정보를 확인해 주세요.' });
+    }
+
+    const promotionAmount = pickRandomPromotionAmount();
+    if (!isValidPromotionAmount(promotionAmount)) {
+      return res.status(500).json({ error: `프로모션 지급 금액 검증에 실패했어요. (${promotionAmount})` });
+    }
+    const promotionResult = await executePromotionByUserKey(tossUserKey, promotionAmount);
+    if (!promotionResult.ok) {
+      return res.status(promotionResult.statusCode).json(promotionResult.payload);
+    }
+
+    return res.status(200).json({
+      data: {
+        accessToken,
+        promotionCode: PROMOTION_CODE,
+        ...promotionResult.payload,
+      },
+    });
+  } catch (e) {
+    console.error('grant-promotion-reward-by-login 실패:', e);
+    return res.status(500).json({
+      error: e.message || '로그인 기반 포인트 지급 중 오류가 발생했습니다.',
     });
   }
 });
@@ -140,7 +575,7 @@ app.get('/get-user-info', async (req, res) => {
     }
 
     if (response.statusCode !== 200 || !isSuccessResult(parsed)) {
-      return res.status(response.statusCode).json(parsed);
+      return oauthApiFailure(res, response.statusCode, parsed, '사용자 정보 조회에 실패했어요.');
     }
 
     const success = parsed.success;
